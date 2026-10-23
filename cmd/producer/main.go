@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
 	"github.com/chumaachike/eventdirvenrabbitrabbit/internal"
+	"github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
@@ -26,6 +28,20 @@ func main() {
 		panic(err)
 	}
 
+	if err := client.CreateBinding("customers_created", "customers.created.*", "customer_events"); err != nil {
+		panic(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Send(ctx, "customer_events", "customers.created.us", amqp091.Publishing{
+		ContentType:  "text/plain",
+		DeliveryMode: amqp091.Persistent,
+		Body:         []byte(`A cool message between services `),
+	}); err != nil {
+		panic(err)
+	}
 	time.Sleep(10 * time.Second)
 
 	log.Println(client)
